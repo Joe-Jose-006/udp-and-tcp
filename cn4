@@ -1,0 +1,148 @@
+udp code
+
+#include "ns3/core-module.h"
+#include "ns3/network-module.h"
+#include "ns3/internet-module.h"
+#include "ns3/point-to-point-module.h"
+#include "ns3/applications-module.h"
+#include "ns3/netanim-module.h"
+
+using namespace ns3;
+
+int main()
+{
+
+NodeContainer nodeGroup;
+nodeGroup.Create(2);
+
+PointToPointHelper link;
+
+link.SetDeviceAttribute("DataRate", StringValue("5Mbps"));
+link.SetChannelAttribute("Delay", StringValue("2ms"));
+
+NetDeviceContainer deviceList;
+
+deviceList = link.Install(nodeGroup);
+
+InternetStackHelper internet;
+
+internet.Install(nodeGroup);
+
+Ipv4AddressHelper ipAddress;
+
+ipAddress.SetBase("10.1.1.0","255.255.255.0");
+
+Ipv4InterfaceContainer interfaces;
+
+interfaces = ipAddress.Assign(deviceList);
+
+uint16_t portNumber = 9;
+
+UdpServerHelper server(portNumber);
+
+ApplicationContainer serverApplication;
+
+serverApplication = server.Install(nodeGroup.Get(1));
+
+serverApplication.Start(Seconds(1.0));
+serverApplication.Stop(Seconds(10.0));
+
+UdpClientHelper client(interfaces.GetAddress(1),portNumber);
+
+client.SetAttribute("MaxPackets",UintegerValue(10));
+client.SetAttribute("Interval",TimeValue(Seconds(1.0)));
+client.SetAttribute("PacketSize",UintegerValue(1024));
+
+ApplicationContainer clientApplication;
+
+clientApplication = client.Install(nodeGroup.Get(0));
+
+clientApplication.Start(Seconds(2.0));
+clientApplication.Stop(Seconds(10.0));
+
+AnimationInterface animation("udp.xml");
+
+Simulator::Run();
+Simulator::Destroy();
+
+return 0;
+
+}
+
+
+tcp code
+
+#include "ns3/core-module.h"
+#include "ns3/network-module.h"
+#include "ns3/internet-module.h"
+#include "ns3/point-to-point-module.h"
+#include "ns3/applications-module.h"
+#include "ns3/netanim-module.h"
+
+using namespace ns3;
+
+int main()
+{
+
+NodeContainer nodeGroup;
+
+nodeGroup.Create(2);
+
+PointToPointHelper link;
+
+link.SetDeviceAttribute("DataRate", StringValue("5Mbps"));
+link.SetChannelAttribute("Delay", StringValue("2ms"));
+
+NetDeviceContainer deviceList;
+
+deviceList = link.Install(nodeGroup);
+
+InternetStackHelper internetStack;
+
+internetStack.Install(nodeGroup);
+
+Ipv4AddressHelper ip;
+
+ip.SetBase("10.1.1.0","255.255.255.0");
+
+Ipv4InterfaceContainer interfaceList;
+
+interfaceList = ip.Assign(deviceList);
+
+uint16_t tcpPort = 8080;
+
+PacketSinkHelper serverSink(
+"ns3::TcpSocketFactory",
+InetSocketAddress(Ipv4Address::GetAny(), tcpPort)
+);
+
+ApplicationContainer serverApplication;
+
+serverApplication = serverSink.Install(nodeGroup.Get(1));
+
+serverApplication.Start(Seconds(1.0));
+serverApplication.Stop(Seconds(10.0));
+
+OnOffHelper tcpClient(
+"ns3::TcpSocketFactory",
+Address(InetSocketAddress(interfaceList.GetAddress(1), tcpPort))
+);
+
+tcpClient.SetAttribute("PacketSize", UintegerValue(1024));
+tcpClient.SetAttribute("DataRate", StringValue("1Mbps"));
+
+ApplicationContainer clientApplication;
+
+clientApplication = tcpClient.Install(nodeGroup.Get(0));
+
+clientApplication.Start(Seconds(2.0));
+clientApplication.Stop(Seconds(10.0));
+
+AnimationInterface animation("tcp.xml");
+
+Simulator::Run();
+Simulator::Destroy();
+
+return 0;
+
+}
